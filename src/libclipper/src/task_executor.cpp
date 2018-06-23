@@ -22,9 +22,11 @@ PredictionCache::PredictionCache(size_t size_bytes)
 }
 
 folly::Future<Output> PredictionCache::fetch(
-    const VersionedModelId &model, std::shared_ptr<PredictionData> &input) {
+    const VersionedModelId &model, QueryId query_id) {
+    // std::shared_ptr<PredictionData> &input) {
   std::unique_lock<std::mutex> l(m_);
-  auto key = hash(model, input->hash());
+  // auto key = hash(model, input->hash());
+  auto key = hash(model, query_id);
   auto search = entries_.find(key);
   lookups_counter_->increment(1);
   if (search != entries_.end()) {
@@ -60,10 +62,12 @@ folly::Future<Output> PredictionCache::fetch(
 }
 
 void PredictionCache::put(const VersionedModelId &model,
-                          std::shared_ptr<PredictionData> &input,
+                          QueryId query_id,
+                          //std::shared_ptr<PredictionData> &input,
                           const Output &output) {
   std::unique_lock<std::mutex> l(m_);
-  auto key = hash(model, input->hash());
+  // auto key = hash(model, input->hash());
+  auto key = hash(model, query_id);
   auto search = entries_.find(key);
   if (search != entries_.end()) {
     CacheEntry &entry = search->second;

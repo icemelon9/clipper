@@ -82,10 +82,12 @@ class PredictionCache {
  public:
   PredictionCache(size_t size_bytes);
   folly::Future<Output> fetch(const VersionedModelId &model,
-                              std::shared_ptr<PredictionData> &input);
+                              QueryId query_id);
+                              //std::shared_ptr<PredictionData> &input);
 
-  void put(const VersionedModelId &model,
-           std::shared_ptr<PredictionData> &input, const Output &output);
+  void put(const VersionedModelId &model, QueryId query_id,
+           //std::shared_ptr<PredictionData> &input,
+           const Output &output);
 
  private:
   size_t hash(const VersionedModelId &model, size_t input_hash) const;
@@ -214,13 +216,14 @@ class InflightMessage {
       const std::chrono::time_point<std::chrono::system_clock> send_time,
       const int container_id, const VersionedModelId model,
       const int replica_id, const std::shared_ptr<PredictionData> input,
-      const bool discard_result)
+      const bool discard_result, QueryId query_id)
       : send_time_(std::move(send_time)),
         container_id_(container_id),
         model_(std::move(model)),
         replica_id_(replica_id),
         input_(std::move(input)),
-        discard_result_(discard_result) {}
+        discard_result_(discard_result),
+        query_id_(query_id) {}
 
   // Default copy and move constructors
   InflightMessage(const InflightMessage &) = default;
@@ -236,6 +239,7 @@ class InflightMessage {
   int replica_id_;
   std::shared_ptr<PredictionData> input_;
   bool discard_result_;
+  QueryId query_id_;
 };
 
 class TaskExecutor {
@@ -387,7 +391,7 @@ class TaskExecutor {
       auto model_queue_entry = model_queues_.find(t.model_);
 
       if (model_queue_entry != model_queues_.end()) {
-        auto cache_result = cache_->fetch(t.model_, t.input_);
+        auto cache_result = cache_->fetch(t.model_, t.query_id_);
 
         if (cache_result.isReady()) {
           output_futures.push_back(std::move(cache_result));
@@ -515,7 +519,8 @@ class TaskExecutor {
       for (auto b : batch) {
         prediction_request.add_input(b.input_);
         cur_batch.emplace_back(current_time, container->container_id_, b.model_,
-                               container->replica_id_, b.input_, b.artificial_);
+                               container->replica_id_, b.input_, b.artificial_,
+                               b.query_id_);
         query_ids_in_batch << b.query_id_ << " ";
       }
       int message_id = rpc_->send_message(prediction_request.serialize(),
@@ -582,7 +587,7 @@ class TaskExecutor {
       for (size_t batch_num = 0; batch_num < batch_size; ++batch_num) {
         InflightMessage completed_msg = keys[batch_num];
         if (!completed_msg.discard_result_) {
-          cache_->put(completed_msg.model_, completed_msg.input_,
+          cache_->put(completed_msg.model_, completed_msg.query_id_,
                       Output{parsed_response.outputs_[batch_num],
                              {completed_msg.model_}});
         }
