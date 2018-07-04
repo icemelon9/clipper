@@ -143,14 +143,18 @@ BatchSizeInfo ModelContainer::get_batch_size(Deadline deadline) {
   budget = budget * budget_decay_;
 
   size_t curr_batch_size;
+  std::string method_string;
   if (budget > static_cast<double>(max_latency_)) {
     curr_batch_size = explore();
     method = BatchSizeDeterminationMethod::Exploration;
+    method_string = "Exploration";
   } else {
     curr_batch_size = estimate(budget);
     method = BatchSizeDeterminationMethod::Estimation;
+    method_string = "Estimation";
   }
   max_batch_size_ = std::max(curr_batch_size, max_batch_size_);
+  log_info_formatted(LOGGING_TAG_CONTAINERS, "Budget: {}, Method: {}, Current Batch Size: {}, Max Batch Size: {}", std::to_string(budget), method_string, std::to_string(curr_batch_size),std::to_string(max_batch_size_));
   return std::make_pair(curr_batch_size, method);
 }
 

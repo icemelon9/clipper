@@ -157,6 +157,9 @@ class ModelQueue {
 
       while (batch.size() < max_batch_size && queue_.size() > 0) {
         batch.push_back(queue_.top().second);
+	log_info_formatted(LOGGING_TAG_TASK_EXECUTOR,
+			   "Push_back to batch. Query ID: {}",
+			   queue_.top().second.query_id_); 
         queue_.pop();
       }
       size_t batch_differential = max_batch_size - batch.size();
@@ -202,6 +205,9 @@ class ModelQueue {
       if (first_deadline <= current_time) {
         // If a task's deadline has already elapsed,
         // we should not process it
+        log_info_formatted(LOGGING_TAG_TASK_EXECUTOR,
+                           "Task timeout. Query ID: {}",
+                           queue_.top().second.query_id_);
         queue_.pop();
       } else {
         break;
